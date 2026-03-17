@@ -56,8 +56,7 @@ If `~/go/bin` isn't on your `PATH`: `cp ~/go/bin/trimout ~/.local/bin/`
 trimout install claude-code
 ```
 
-This prints the hook JSON for your setup with the correct binary path.
-Add the output to the `"hooks"` object in `~/.claude/settings.json`.
+Copy the output into the `"hooks"` object in `~/.claude/settings.json`.
 
 ### 3. Restart Claude Code
 
