@@ -2,14 +2,11 @@
 
 Output trimmer for AI coding agents. Compresses verbose build/test
 output to reduce context window usage while preserving errors unfiltered.
-Works with Claude Code, Cursor, Cline, Aider, Codex, or custom setups.
 
-Single static binary.
+Single static binary. Works with Claude Code, Cursor, Cline, Aider,
+Codex, or custom setups.
 
 ## Before & after
-
-A `dotnet build` produces ~274 lines of verbose output. trimout compresses
-it to 13 — the first 5, the last 5, a filtered-line count, and a log pointer:
 
 ```
 $ dotnet build
@@ -30,9 +27,41 @@ $ dotnet build
 Full output: /tmp/trimout-data/logs/20260316-183000.log
 ```
 
-Errors pass through unfiltered — full context when something breaks.
+274 lines → 13. Errors pass through unfiltered.
 
-### Context savings
+## Get started (Claude Code)
+
+### 1. Install
+
+```bash
+go install github.com/ristaloff/trimout@latest
+```
+
+If `~/go/bin` isn't on your `PATH`: `cp ~/go/bin/trimout ~/.local/bin/`
+
+### 2. Configure
+
+```bash
+trimout install claude-code
+```
+
+This prints the hook JSON for your setup with the correct binary path.
+Add the output to the `"hooks"` object in `~/.claude/settings.json`.
+
+### 3. Restart Claude Code
+
+Hooks load at session start. **You must restart** for trimout to take effect.
+
+### 4. Verify
+
+```bash
+trimout install claude-code --check
+```
+
+All checks should pass. If something is wrong, the output tells you
+exactly what to fix.
+
+## Context savings
 
 | Scenario | Raw lines | Trimmed | Raw bytes | Trimmed | Reduction |
 |----------|----------:|--------:|----------:|--------:|----------:|
@@ -42,84 +71,20 @@ Errors pass through unfiltered — full context when something breaks.
 | Build with errors | 45 | 45 | 1.1 KB | 1.1 KB | 0% |
 
 Errors always pass through unfiltered — 0% reduction on failures is by design.
+Each filtered build saves roughly 5,000-10,000 context window tokens
+(~4 bytes per token across most LLM tokenizers).
 
-Each filtered build saves roughly 5,000-10,000 tokens of context window
-depending on output verbosity (~4 bytes per token across most LLM tokenizers).
-
-## Install
-
-Requires Go 1.21+:
-
-```bash
-go install github.com/ristaloff/trimout@latest
-```
-
-If `~/go/bin` isn't on your `PATH`, copy the binary:
-
-```bash
-cp ~/go/bin/trimout ~/.local/bin/
-```
-
-Or clone and build to `~/.local/bin/` directly:
-
-```bash
-git clone https://github.com/ristaloff/trimout.git
-cd trimout
-make install
-```
-
-Verify:
-
-```bash
-trimout --version
-trimout --check "dotnet build"  # exit 0 = would be trimmed
-```
-
-## Quick start
-
-### Claude Code
-
-Run `trimout install claude-code` to get the hook configuration for
-your `~/.claude/settings.json`. The install command detects your binary
-path and prints the exact JSON to add.
-
-```bash
-trimout install claude-code          # print hooks to add
-trimout install claude-code --check  # verify installation
-```
-
-### Any agent (generic)
-
-**Command wrapper** — checks the allowlist, returns a rewritten pipeline:
-
-```bash
-if rewritten=$(trimout "dotnet build --no-restore"); then
-  eval "$rewritten"    # runs: build | tee log | trimout filter
-else
-  dotnet build --no-restore  # not on allowlist — run normally
-fi
-```
-
-**Pipe filter** — you control the pipeline, trimout filters stdin:
-
-```bash
-dotnet build 2>&1 | tee build.log | trimout filter --log build.log
-```
-
-## What it does
-
-`trimout "cmd"` checks the allowlist and builds a pipeline around
-`trimout filter`, the core text filter. Both use the same logic:
+## How it works
 
 - **Short output** (<=30 lines): passes through unchanged
 - **Clean long output** (>30 lines, no errors): compressed to first 5 + last 5 lines with a log pointer
 - **Errors detected** (<=500 lines): passes through entirely so you can diagnose
 - **Errors detected** (>500 lines): shows head/tail + up to 30 extracted error lines
-- **Full output**: always saved to a log file in `/tmp/trimout-data/logs/`
+- **Full output**: always saved to `/tmp/trimout-data/logs/`
 
 ### Opt out
 
-Add `# nofilter` anywhere in the command string to bypass trimming:
+Add `# nofilter` anywhere in the command string:
 
 ```
 dotnet test --no-build # nofilter
@@ -142,24 +107,49 @@ Matches anywhere in the command including pipes and chains (word-boundary regex)
 Non-matching commands pass through untouched.
 Full list: [patterns.go](patterns.go).
 
-## Usage
+## Other agents
+
+**Command wrapper** — checks the allowlist, returns a rewritten pipeline:
+
+```bash
+if rewritten=$(trimout "dotnet build --no-restore"); then
+  eval "$rewritten"    # runs: build | tee log | trimout filter
+else
+  dotnet build --no-restore  # not on allowlist — run normally
+fi
+```
+
+**Pipe filter** — you control the pipeline, trimout filters stdin:
+
+```bash
+dotnet build 2>&1 | tee build.log | trimout filter --log build.log
+```
+
+`trimout "cmd"` checks the allowlist and builds a pipeline around
+`trimout filter`, the core engine. Use the wrapper for convenience,
+or the pipe filter for custom integrations.
+
+## Reference
+
+### Usage
 
 ```
 trimout "command"                  Check allowlist + output rewritten pipeline
 trimout --check "command"          Just check if command would be trimmed (exit 0/1)
 trimout --log-dir DIR "command"    Custom log directory
 trimout --session ID "command"     Custom session ID
-trimout filter [--log F] [--session S]   Stdin→stdout text filter (the core engine)
+trimout filter [--log F] [--session S]   Stdin→stdout text filter
 trimout hook                       Claude Code PreToolUse adapter
 trimout metrics                    Claude Code PostToolUse adapter
+trimout install <agent>            Print hook configuration
+trimout install <agent> --check    Verify installation
 trimout --version                  Print version
 trimout --help                     Help (also works per subcommand)
 ```
 
 Exit codes: 0 = match/success, 1 = no match, 2 = bad usage.
-The rewritten pipeline requires **bash** (`PIPESTATUS` for exit code preservation).
 
-## Architecture
+### Architecture
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -192,9 +182,9 @@ The rewritten pipeline requires **bash** (`PIPESTATUS` for exit code preservatio
 Metrics are written to `/tmp/trimout-data/metrics/tool-output.jsonl` by the
 PostToolUse hook. Each entry includes the command, byte counts, duration,
 exit code, and for filtered commands: `original_lines`, `filtered_lines`,
-and `filtered: true`.
+and `filtered: true`. Data is ephemeral (cleared on reboot).
 
-## Error detection
+### Error detection
 
 Lines are classified as errors if they match (case-insensitive):
 
