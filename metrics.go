@@ -63,8 +63,14 @@ func runMetrics() {
 			exitCode = readExitCode(logPath+".exit", exitCode)
 			originalLines = countLines(logPath)
 		}
-		// Count filtered output lines from stdout
-		filteredLines = strings.Count(input.ToolResponse.Stdout, "\n")
+		// Compute filtered lines: prefer stdout if available, otherwise
+		// estimate from the filter's deterministic rules. Claude Code
+		// sometimes reports empty stdout for long-running commands.
+		if len(input.ToolResponse.Stdout) > 0 {
+			filteredLines = strings.Count(input.ToolResponse.Stdout, "\n")
+		} else if originalLines > 0 {
+			filteredLines = estimateFilteredLines(originalLines)
+		}
 		cmd = parts[0]
 		// Strip subshell wrapper: "( cmd )" → "cmd"
 		if strings.HasPrefix(cmd, "( ") && strings.HasSuffix(cmd, " )") {
@@ -106,6 +112,16 @@ func runMetrics() {
 	}
 	defer f.Close()
 	f.Write(append(data, '\n'))
+}
+
+// estimateFilteredLines computes the expected filter output line count
+// from the original line count, using the filter's deterministic rules.
+// This is a fallback for when Claude Code reports empty stdout.
+func estimateFilteredLines(originalLines int) int {
+	if originalLines <= Threshold {
+		return originalLines // short: passthrough
+	}
+	return HeadLines + TailLines + 3 // compressed: head + tail + decoration
 }
 
 // countLines counts newlines in a file. Returns 0 if the file can't be read.
