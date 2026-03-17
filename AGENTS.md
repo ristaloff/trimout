@@ -49,38 +49,13 @@ Everything else passes through untouched.
 
 ### Claude Code
 
-Add to `~/.claude/settings.json`:
-
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "trimout hook"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "trimout metrics"
-          }
-        ]
-      }
-    ]
-  }
-}
+```bash
+trimout install claude-code          # prints hook JSON with correct binary path
+trimout install claude-code --check  # verify everything works
 ```
 
-If `trimout` isn't on your PATH, use the full path (e.g. `$HOME/.local/bin/trimout hook`).
+Add the output to `~/.claude/settings.json`, then **restart Claude Code**
+(hooks load at session start).
 
 ### Other agents
 
@@ -108,9 +83,9 @@ Requires Go 1.21+:
 go install github.com/ristaloff/trimout@latest
 ```
 
-Verify: `trimout --version`
-
 If `~/go/bin` isn't on your PATH: `cp ~/go/bin/trimout ~/.local/bin/`
+
+Verify: `trimout install claude-code --check`
 
 ## Logs and metrics
 
