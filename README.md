@@ -79,6 +79,20 @@ Across 100+ filtered commands in real development sessions, average
 reduction is **88%** for test runs and **25%** for builds (builds are
 often short enough to pass through unchanged).
 
+### Session impact (early data — 3 sessions)
+
+| Metric | Value |
+|--------|------:|
+| Filtered commands | 130 |
+| Lines saved | 7,899 (83%) |
+| Tokens saved | ~158,000 |
+| Bash context reduced | 49% |
+| Avg saved per session | ~53,000 tokens |
+
+Nearly half of all Bash tool context was build/test noise that trimout
+compressed away — context the agent can use for reasoning instead.
+Will update as usage grows.
+
 ## How it works
 
 - **Short output** (<=30 lines): passes through unchanged
