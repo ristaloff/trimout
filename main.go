@@ -23,8 +23,8 @@ func main() {
 			printFilterHelp()
 			return
 		}
-		logPath, sessionID, metricsDir := parseFilterArgs(os.Args[2:])
-		runFilter(logPath, sessionID, metricsDir)
+		logPath, sessionID := parseFilterArgs(os.Args[2:])
+		runFilter(logPath, sessionID)
 	case "hook":
 		if hasHelpFlag(os.Args[2:]) {
 			printHookHelp()
@@ -37,6 +37,12 @@ func main() {
 			return
 		}
 		runMetrics()
+	case "install":
+		if hasHelpFlag(os.Args[2:]) {
+			printInstallHelp()
+			return
+		}
+		runInstall(os.Args[2:])
 	default:
 		// Default: treat all args as the rewrite command
 		if hasHelpFlag(os.Args[1:]) {
@@ -67,6 +73,8 @@ Usage:
   trimout filter                 Stdin→stdout text filter (the core engine)
   trimout hook                   Claude Code PreToolUse adapter
   trimout metrics                Claude Code PostToolUse adapter
+  trimout install <agent>        Set up hooks for an agent (e.g. claude-code)
+  trimout install <agent> --check  Verify installation is healthy
   trimout --version              Print version
 
 If the command matches the allowlist, prints a rewritten bash pipeline
@@ -90,14 +98,13 @@ Opt out of trimming for any command with # nofilter anywhere in the string:
   dotnet test --no-build # nofilter
 
 Flags:
-  --log-dir DIR    Directory for full output logs (default: $TRIMOUT_HOME/logs/)
+  --log-dir DIR    Directory for full output logs (default: /tmp/trimout-data/logs/)
   --session ID     Session identifier for metrics correlation
   --check          Only check if the command would be trimmed; no output, exit 0/1
   -h, --help       Show this help
 
-Environment:
-  TRIMOUT_HOME     Base directory for logs and metrics
-                   (default: ~/.local/state/trimout)`)
+Data:
+  Logs and metrics are written to /tmp/trimout-data/ (ephemeral).`)
 }
 
 func printFilterHelp() {
@@ -117,7 +124,6 @@ exit code — they are preserved in the output text for diagnosis.
 Flags:
   --log FILE          Path to the full output log (shown in the filter pointer)
   --session ID        Session identifier for metrics correlation
-  --metrics-dir DIR   Directory for filter-stats.jsonl (default: $TRIMOUT_HOME/metrics/)
   -h, --help          Show this help
 
 Positional args are also supported: trimout filter <log> <session>`)
@@ -137,10 +143,8 @@ trimout directly with the command as an argument.
 Usage:
   trimout hook < <hook-json>
 
-Claude Code setup (in ~/.claude/settings.json):
-  {"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[
-    {"type":"command","command":"$HOME/.local/bin/trimout hook"}
-  ]}]}}`)
+Setup:
+  trimout install claude-code`)
 }
 
 func printMetricsHelp() {
@@ -148,7 +152,7 @@ func printMetricsHelp() {
 
 Reads Claude Code's PostToolUse hook JSON from stdin and appends
 execution metrics (command pattern, byte counts, exit code) to
-$TRIMOUT_HOME/metrics/tool-output.jsonl.
+/tmp/trimout-data/metrics/tool-output.jsonl.
 
 This subcommand is Claude Code-specific. For other agents, filter
 statistics are written automatically by 'trimout filter'.
@@ -156,15 +160,13 @@ statistics are written automatically by 'trimout filter'.
 Usage:
   trimout metrics < <hook-json>
 
-Claude Code setup (in ~/.claude/settings.json):
-  {"hooks":{"PostToolUse":[{"matcher":"Bash","hooks":[
-    {"type":"command","command":"$HOME/.local/bin/trimout metrics"}
-  ]}]}}`)
+Setup:
+  trimout install claude-code`)
 }
 
-// parseFilterArgs extracts --log, --session, and --metrics-dir from args.
+// parseFilterArgs extracts --log and --session from args.
 // Also accepts positional args for backward compat: filter <log> <session>
-func parseFilterArgs(args []string) (logPath, sessionID, metricsDir string) {
+func parseFilterArgs(args []string) (logPath, sessionID string) {
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--log":
@@ -175,11 +177,6 @@ func parseFilterArgs(args []string) (logPath, sessionID, metricsDir string) {
 		case "--session":
 			if i+1 < len(args) {
 				sessionID = args[i+1]
-				i++
-			}
-		case "--metrics-dir":
-			if i+1 < len(args) {
-				metricsDir = args[i+1]
 				i++
 			}
 		default:

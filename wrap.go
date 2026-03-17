@@ -10,15 +10,10 @@ import (
 // buildRewrittenCommand constructs the pipeline that wraps a command
 // with tee (for logging) and trimout filter (for compression).
 // Exit code is preserved via PIPESTATUS and written to a sidecar file.
-// extraFilterArgs are appended to the filter invocation (e.g. "--metrics-dir /path").
-func buildRewrittenCommand(cmd, logFile, filterBinary, sessionID string, extraFilterArgs ...string) string {
-	extra := ""
-	for _, a := range extraFilterArgs {
-		extra += " " + a
-	}
+func buildRewrittenCommand(cmd, logFile, filterBinary, sessionID string) string {
 	return fmt.Sprintf(
-		"( %s ) 2>&1 | tee %s | %s filter --log %s --session %s%s; _ec=${PIPESTATUS[0]}; printf '%%d' $_ec > %s.exit; exit $_ec",
-		cmd, logFile, filterBinary, logFile, sessionID, extra, logFile,
+		"( %s ) 2>&1 | tee %s | %s filter --log %s --session %s; _ec=${PIPESTATUS[0]}; printf '%%d' $_ec > %s.exit; exit $_ec",
+		cmd, logFile, filterBinary, logFile, sessionID, logFile,
 	)
 }
 

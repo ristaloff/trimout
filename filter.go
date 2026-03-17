@@ -1,25 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
-	"time"
 )
 
-type filterStats struct {
-	Timestamp     string `json:"ts"`
-	Session       string `json:"session"`
-	Log           string `json:"log"`
-	OriginalLines int    `json:"original_lines"`
-	FilteredLines int    `json:"filtered_lines"`
-	Action        string `json:"action"`
-}
-
-func runFilter(logPath, sessionID, metricsDir string) {
+func runFilter(logPath, sessionID string) {
 	// Read all stdin, strip carriage returns
 	raw, err := io.ReadAll(os.Stdin)
 	if err != nil {
@@ -40,7 +28,6 @@ func runFilter(logPath, sessionID, metricsDir string) {
 	// Short output: pass through unchanged
 	if totalLines <= Threshold {
 		fmt.Fprintln(os.Stdout, input)
-		logFilterStats(metricsDir, logPath, sessionID, totalLines, totalLines, "short")
 		return
 	}
 
@@ -56,7 +43,6 @@ func runFilter(logPath, sessionID, metricsDir string) {
 		if totalLines <= MaxPassthrough {
 			// Small enough to pass through entirely
 			fmt.Fprintln(os.Stdout, input)
-			logFilterStats(metricsDir, logPath, sessionID, totalLines, totalLines, "errors")
 		} else {
 			// Too large — show errors + head/tail + pointer
 			var errorLines []string
@@ -81,9 +67,6 @@ func runFilter(logPath, sessionID, metricsDir string) {
 				fmt.Fprintf(os.Stdout, "\n... (%d lines filtered — %d errors detected)\n\n", omitted, errorCount)
 			}
 			fmt.Fprintln(os.Stdout, tailBlock)
-
-			shownErrors := len(errorLines)
-			logFilterStats(metricsDir, logPath, sessionID, totalLines, HeadLines+TailLines+shownErrors+3, "errors_capped")
 		}
 		return
 	}
@@ -100,38 +83,4 @@ func runFilter(logPath, sessionID, metricsDir string) {
 		fmt.Fprintf(os.Stdout, "\n... (%d lines filtered)\n\n", omitted)
 	}
 	fmt.Fprintln(os.Stdout, tailBlock)
-
-	filteredLines := HeadLines + TailLines + 3
-	logFilterStats(metricsDir, logPath, sessionID, totalLines, filteredLines, "compressed")
-}
-
-func logFilterStats(metricsDir, logPath, sessionID string, originalLines, filteredLines int, action string) {
-	var metricsPath string
-	if metricsDir != "" {
-		metricsPath = filepath.Join(metricsDir, "filter-stats.jsonl")
-	} else {
-		metricsPath = FilterStatsPath()
-	}
-	os.MkdirAll(filepath.Dir(metricsPath), 0o755)
-
-	entry := filterStats{
-		Timestamp:     time.Now().UTC().Format("2006-01-02T15:04:05Z"),
-		Session:       sessionID,
-		Log:           logPath,
-		OriginalLines: originalLines,
-		FilteredLines: filteredLines,
-		Action:        action,
-	}
-
-	data, err := json.Marshal(entry)
-	if err != nil {
-		return
-	}
-
-	f, err := os.OpenFile(metricsPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	f.Write(append(data, '\n'))
 }

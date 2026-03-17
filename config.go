@@ -5,31 +5,21 @@ import (
 	"path/filepath"
 )
 
-// Home returns the base directory for trimout data.
-// Uses TRIMOUT_HOME if set, then XDG_STATE_HOME/trimout,
-// then falls back to ~/.local/state/trimout/.
-func Home() string {
-	if v := os.Getenv("TRIMOUT_HOME"); v != "" {
-		return v
-	}
-	stateHome := os.Getenv("XDG_STATE_HOME")
-	if stateHome == "" {
-		stateHome = filepath.Join(os.Getenv("HOME"), ".local", "state")
-	}
-	return filepath.Join(stateHome, "trimout")
+// DataDir returns the base directory for trimout session data (logs, metrics).
+// Always uses /tmp/trimout-data/ — works in any sandbox, no config needed.
+// Data is ephemeral (lost on reboot) by design. Persistent metrics
+// collection is the responsibility of the calling framework.
+func DataDir() string {
+	return filepath.Join(os.TempDir(), "trimout-data")
 }
 
 // LogDir returns the directory for full output logs.
 func LogDir() string {
-	return filepath.Join(Home(), "logs")
+	return filepath.Join(DataDir(), "logs")
 }
 
 // MetricsDir returns the directory for metrics JSONL files.
 func MetricsDir() string {
-	return filepath.Join(Home(), "metrics")
+	return filepath.Join(DataDir(), "metrics")
 }
 
-// FilterStatsPath returns the path for filter statistics JSONL.
-func FilterStatsPath() string {
-	return filepath.Join(MetricsDir(), "filter-stats.jsonl")
-}

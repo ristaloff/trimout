@@ -24,15 +24,18 @@ type metricsInput struct {
 }
 
 type metricsEntry struct {
-	Timestamp   string `json:"ts"`
-	Session     string `json:"session"`
-	Command     string `json:"command"`
-	CmdPattern  string `json:"cmd_pattern"`
-	StdoutBytes int    `json:"stdout_bytes"`
-	StderrBytes int    `json:"stderr_bytes"`
-	TotalBytes  int    `json:"total_bytes"`
-	DurationMs  int    `json:"duration_ms"`
-	ExitCode    int    `json:"exit_code"`
+	Timestamp     string `json:"ts"`
+	Session       string `json:"session"`
+	Command       string `json:"command"`
+	CmdPattern    string `json:"cmd_pattern"`
+	StdoutBytes   int    `json:"stdout_bytes"`
+	StderrBytes   int    `json:"stderr_bytes"`
+	TotalBytes    int    `json:"total_bytes"`
+	DurationMs    int    `json:"duration_ms"`
+	ExitCode      int    `json:"exit_code"`
+	OriginalLines int    `json:"original_lines,omitempty"`
+	FilteredLines int    `json:"filtered_lines,omitempty"`
+	Filtered      bool   `json:"filtered,omitempty"`
 }
 
 func runMetrics() {
@@ -50,13 +53,18 @@ func runMetrics() {
 
 	// Strip filter pipeline suffix if command was rewritten by PreToolUse hook
 	// Rewritten format: ( original_cmd ) 2>&1 | tee LOG | trimout filter ...
+	var originalLines, filteredLines int
+	filtered := false
 	if strings.Contains(cmd, " 2>&1 | tee ") && strings.Contains(cmd, " filter --log ") {
+		filtered = true
 		parts := strings.SplitN(cmd, " 2>&1 | tee ", 2)
-		// Read exit code from sidecar file written by the rewritten command
 		if len(parts) == 2 {
 			logPath := strings.SplitN(parts[1], " | ", 2)[0]
 			exitCode = readExitCode(logPath+".exit", exitCode)
+			originalLines = countLines(logPath)
 		}
+		// Count filtered output lines from stdout
+		filteredLines = strings.Count(input.ToolResponse.Stdout, "\n")
 		cmd = parts[0]
 		// Strip subshell wrapper: "( cmd )" → "cmd"
 		if strings.HasPrefix(cmd, "( ") && strings.HasSuffix(cmd, " )") {
@@ -70,15 +78,18 @@ func runMetrics() {
 	}
 
 	entry := metricsEntry{
-		Timestamp:   time.Now().UTC().Format("2006-01-02T15:04:05Z"),
-		Session:     input.SessionID,
-		Command:     cmd,
-		CmdPattern:  classifyCommand(cmd),
-		StdoutBytes: len(input.ToolResponse.Stdout),
-		StderrBytes: len(input.ToolResponse.Stderr),
-		TotalBytes:  len(input.ToolResponse.Stdout) + len(input.ToolResponse.Stderr),
-		DurationMs:  input.ToolResponse.Duration,
-		ExitCode:    exitCode,
+		Timestamp:     time.Now().UTC().Format("2006-01-02T15:04:05Z"),
+		Session:       input.SessionID,
+		Command:       cmd,
+		CmdPattern:    classifyCommand(cmd),
+		StdoutBytes:   len(input.ToolResponse.Stdout),
+		StderrBytes:   len(input.ToolResponse.Stderr),
+		TotalBytes:    len(input.ToolResponse.Stdout) + len(input.ToolResponse.Stderr),
+		DurationMs:    input.ToolResponse.Duration,
+		ExitCode:      exitCode,
+		OriginalLines: originalLines,
+		FilteredLines: filteredLines,
+		Filtered:      filtered,
 	}
 
 	metricsPath := filepath.Join(MetricsDir(), "tool-output.jsonl")
@@ -95,6 +106,15 @@ func runMetrics() {
 	}
 	defer f.Close()
 	f.Write(append(data, '\n'))
+}
+
+// countLines counts newlines in a file. Returns 0 if the file can't be read.
+func countLines(path string) int {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0
+	}
+	return strings.Count(string(data), "\n")
 }
 
 // readExitCode reads an integer from a sidecar file and removes it.

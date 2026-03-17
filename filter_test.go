@@ -30,7 +30,7 @@ func captureFilterOutput(t *testing.T, input, logPath, sessionID string) string 
 	outR, outW, _ := os.Pipe()
 	os.Stdout = outW
 
-	runFilter(logPath, sessionID, "")
+	runFilter(logPath, sessionID)
 	outW.Close()
 
 	var buf bytes.Buffer
@@ -46,7 +46,7 @@ func filler(n int) string {
 	return strings.Join(lines, "\n")
 }
 
-func countLines(s string) int {
+func countOutputLines(s string) int {
 	s = strings.TrimRight(s, "\n")
 	if s == "" {
 		return 0
@@ -57,7 +57,7 @@ func countLines(s string) int {
 func TestFilterShortPassthrough(t *testing.T) {
 	input := "Build succeeded.\n0 errors\n"
 	result := captureFilterOutput(t, input, "/tmp/test.log", "test")
-	lines := countLines(result)
+	lines := countOutputLines(result)
 	if lines > 3 {
 		t.Errorf("short output: got %d lines, expected ≤3", lines)
 	}
@@ -74,7 +74,7 @@ func TestFilterCleanLongCompressed(t *testing.T) {
 func TestFilterErrorsSmallPassthrough(t *testing.T) {
 	input := filler(40) + "\nerror: broken\n"
 	result := captureFilterOutput(t, input, "/tmp/test.log", "test")
-	lines := countLines(result)
+	lines := countOutputLines(result)
 	if lines != 41 {
 		t.Errorf("errors <500: got %d lines, expected 41", lines)
 	}
@@ -83,7 +83,7 @@ func TestFilterErrorsSmallPassthrough(t *testing.T) {
 func TestFilterErrorsLargeCapped(t *testing.T) {
 	input := filler(600) + "\nerror: broken\nFAILED\n"
 	result := captureFilterOutput(t, input, "/tmp/test.log", "test")
-	lines := countLines(result)
+	lines := countOutputLines(result)
 	if lines >= 100 {
 		t.Errorf("errors >500: got %d lines, expected <100", lines)
 	}
@@ -92,7 +92,7 @@ func TestFilterErrorsLargeCapped(t *testing.T) {
 func TestFilterStandaloneFAILTab(t *testing.T) {
 	input := filler(40) + "\nFAIL\tpkg/broken\t0.01s\n"
 	result := captureFilterOutput(t, input, "/tmp/test.log", "test")
-	lines := countLines(result)
+	lines := countOutputLines(result)
 	if lines != 41 {
 		t.Errorf("FAIL\\t: got %d lines, expected 41", lines)
 	}
@@ -109,7 +109,7 @@ func TestFilterZeroErrorNoFalsePositive(t *testing.T) {
 func TestFilterFAILEDDetected(t *testing.T) {
 	input := filler(40) + "\nFAILED tests/test_auth.py::test_login\n"
 	result := captureFilterOutput(t, input, "/tmp/test.log", "test")
-	lines := countLines(result)
+	lines := countOutputLines(result)
 	if lines != 41 {
 		t.Errorf("FAILED: got %d lines, expected 41", lines)
 	}
@@ -118,7 +118,7 @@ func TestFilterFAILEDDetected(t *testing.T) {
 func TestFilterExceptionDetected(t *testing.T) {
 	input := filler(40) + "\njava.lang.NullPointerException: oops\n"
 	result := captureFilterOutput(t, input, "/tmp/test.log", "test")
-	lines := countLines(result)
+	lines := countOutputLines(result)
 	if lines != 41 {
 		t.Errorf("exception: got %d lines, expected 41", lines)
 	}
@@ -127,7 +127,7 @@ func TestFilterExceptionDetected(t *testing.T) {
 func TestFilterFatalDetected(t *testing.T) {
 	input := filler(40) + "\nfatal error: something terrible\n"
 	result := captureFilterOutput(t, input, "/tmp/test.log", "test")
-	lines := countLines(result)
+	lines := countOutputLines(result)
 	if lines != 41 {
 		t.Errorf("fatal: got %d lines, expected 41", lines)
 	}
@@ -168,7 +168,7 @@ func TestFilterMaxPassthroughBoundary(t *testing.T) {
 	// 499 filler + 1 error = 500 lines → passthrough
 	input := filler(499) + "\nerror: x\n"
 	result := captureFilterOutput(t, input, "/tmp/test.log", "test")
-	lines := countLines(result)
+	lines := countOutputLines(result)
 	if lines != 500 {
 		t.Errorf("500 lines with error: got %d, expected 500", lines)
 	}
@@ -178,7 +178,7 @@ func TestFilterOverMaxPassthroughCapped(t *testing.T) {
 	// 500 filler + 1 error = 501 lines → capped
 	input := filler(500) + "\nerror: x\n"
 	result := captureFilterOutput(t, input, "/tmp/test.log", "test")
-	lines := countLines(result)
+	lines := countOutputLines(result)
 	if lines >= 100 {
 		t.Errorf("501 lines with error: got %d, expected <100", lines)
 	}

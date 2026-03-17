@@ -10,17 +10,19 @@ import (
 	"testing"
 )
 
-// setupMetricsTest sets TRIMOUT_HOME to a temp dir and returns the metrics file path.
-func setupMetricsTest(t *testing.T) string {
-	t.Helper()
-	tmpDir := t.TempDir()
-	t.Setenv("TRIMOUT_HOME", tmpDir)
-	return filepath.Join(tmpDir, "metrics", "tool-output.jsonl")
+// metricsPath returns the path where runMetrics writes.
+func metricsPath() string {
+	return filepath.Join(MetricsDir(), "tool-output.jsonl")
 }
 
 // captureMetricsOutput runs runMetrics with the given stdin.
+// Cleans the metrics file before running to isolate test output.
 func captureMetricsOutput(t *testing.T, input string) {
 	t.Helper()
+
+	// Ensure metrics dir exists, truncate file for isolation
+	os.MkdirAll(MetricsDir(), 0o755)
+	os.Remove(metricsPath())
 
 	oldStdin := os.Stdin
 	defer func() { os.Stdin = oldStdin }()
@@ -52,22 +54,18 @@ func makeMetricsInput(cmd, stdout string, exitCode int) string {
 }
 
 func TestMetricsFileCreated(t *testing.T) {
-	metricsPath := setupMetricsTest(t)
-
 	captureMetricsOutput(t, makeMetricsInput("echo hello", "hello", 0))
 
-	if _, err := os.Stat(metricsPath); os.IsNotExist(err) {
+	if _, err := os.Stat(metricsPath()); os.IsNotExist(err) {
 		t.Error("metrics file not created")
 	}
 }
 
 func TestMetricsRewrittenCommandStripped(t *testing.T) {
-	metricsPath := setupMetricsTest(t)
-
 	rewritten := "( dotnet test ) 2>&1 | tee /tmp/x.log | /usr/local/bin/trimout filter --log /tmp/x.log --session sess; exit ${PIPESTATUS[0]}"
 	captureMetricsOutput(t, makeMetricsInput(rewritten, "ok", 0))
 
-	data, err := os.ReadFile(metricsPath)
+	data, err := os.ReadFile(metricsPath())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,11 +78,9 @@ func TestMetricsRewrittenCommandStripped(t *testing.T) {
 }
 
 func TestMetricsCommandPatternClassification(t *testing.T) {
-	metricsPath := setupMetricsTest(t)
-
 	captureMetricsOutput(t, makeMetricsInput("dotnet build --no-restore", "ok", 0))
 
-	data, err := os.ReadFile(metricsPath)
+	data, err := os.ReadFile(metricsPath())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,32 +93,25 @@ func TestMetricsCommandPatternClassification(t *testing.T) {
 }
 
 func TestMetricsWrongToolNameSkipped(t *testing.T) {
-	metricsPath := setupMetricsTest(t)
+	captureMetricsOutput(t, `{"tool_name":"Edit","tool_input":{"file_path":"/tmp/x"},"tool_response":{},"session_id":"t"}`)
 
-	input := `{"tool_name":"Edit","tool_input":{"file_path":"/tmp/x"},"tool_response":{},"session_id":"t"}`
-	captureMetricsOutput(t, input)
-
-	if _, err := os.Stat(metricsPath); !os.IsNotExist(err) {
+	if _, err := os.Stat(metricsPath()); !os.IsNotExist(err) {
 		t.Error("wrong tool name should not write metrics")
 	}
 }
 
 func TestMetricsMalformedJSON(t *testing.T) {
-	metricsPath := setupMetricsTest(t)
-
 	captureMetricsOutput(t, "{ broken }")
 
-	if _, err := os.Stat(metricsPath); !os.IsNotExist(err) {
+	if _, err := os.Stat(metricsPath()); !os.IsNotExist(err) {
 		t.Error("malformed JSON should not write metrics")
 	}
 }
 
 func TestMetricsOutputIsValidJSONL(t *testing.T) {
-	metricsPath := setupMetricsTest(t)
-
 	captureMetricsOutput(t, makeMetricsInput("git status", "on branch main", 0))
 
-	data, err := os.ReadFile(metricsPath)
+	data, err := os.ReadFile(metricsPath())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,8 +123,6 @@ func TestMetricsOutputIsValidJSONL(t *testing.T) {
 }
 
 func TestMetricsExitCodeFromSidecar(t *testing.T) {
-	metricsPath := setupMetricsTest(t)
-
 	// Create a sidecar file simulating a failed build
 	sidecar := filepath.Join(t.TempDir(), "test.log.exit")
 	os.WriteFile(sidecar, []byte("1"), 0o644)
@@ -145,7 +132,7 @@ func TestMetricsExitCodeFromSidecar(t *testing.T) {
 	rewritten := "( dotnet test ) 2>&1 | tee " + logPath + " | /usr/local/bin/trimout filter --log " + logPath + " --session sess; _ec=${PIPESTATUS[0]}; printf '%d' $_ec > " + sidecar + "; exit $_ec"
 	captureMetricsOutput(t, makeMetricsInput(rewritten, "error: build failed", 1))
 
-	data, err := os.ReadFile(metricsPath)
+	data, err := os.ReadFile(metricsPath())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,20 +150,17 @@ func TestMetricsExitCodeFromSidecar(t *testing.T) {
 }
 
 func TestMetricsExitCodeFallbackWhenNoSidecar(t *testing.T) {
-	metricsPath := setupMetricsTest(t)
-
 	// Rewritten command but no sidecar file exists
 	rewritten := "( dotnet test ) 2>&1 | tee /tmp/nonexistent.log | /usr/local/bin/trimout filter --log /tmp/nonexistent.log --session sess; _ec=${PIPESTATUS[0]}; printf '%d' $_ec > /tmp/nonexistent.log.exit; exit $_ec"
 	captureMetricsOutput(t, makeMetricsInput(rewritten, "ok", 0))
 
-	data, err := os.ReadFile(metricsPath)
+	data, err := os.ReadFile(metricsPath())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var entry metricsEntry
 	json.Unmarshal(bytes.TrimSpace(data), &entry)
-	// Falls back to the value from tool_response (0 in this case)
 	if entry.ExitCode != 0 {
 		t.Errorf("exit_code = %d, want 0 (fallback)", entry.ExitCode)
 	}

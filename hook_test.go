@@ -94,6 +94,9 @@ func TestHookSubshellWrapFormat(t *testing.T) {
 	if !strings.HasPrefix(cmd, "( ") {
 		t.Errorf("rewrite doesn't start with '( ': %s", cmd)
 	}
+	if !strings.Contains(cmd, "( dotnet build && dotnet test )") {
+		t.Errorf("rewrite missing subshell-wrapped command: %s", cmd)
+	}
 }
 
 func TestHookSessionIDInRewrite(t *testing.T) {
