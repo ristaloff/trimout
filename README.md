@@ -71,6 +71,15 @@ trimout install claude-code --check
 All checks should pass. If something is wrong, the output tells you
 exactly what to fix.
 
+## Logs & metrics
+
+- Full unfiltered output: `/tmp/trimout-data/logs/`
+- Per-command metrics: `/tmp/trimout-data/metrics/tool-output.jsonl`
+- Ephemeral — cleared on reboot by design
+
+Each metrics entry includes command, byte counts, duration, exit code,
+and for filtered commands: `original_lines`, `filtered_lines`.
+
 ## Impact
 
 Per-command reduction from real development sessions:
@@ -200,13 +209,6 @@ Exit codes: 0 = match/success, 1 = no match, 2 = bad usage.
      │  (compress/pass)   │
      └───────────────────┘
 ```
-
-### Metrics
-
-Metrics are written to `/tmp/trimout-data/metrics/tool-output.jsonl` by the
-PostToolUse hook. Each entry includes the command, byte counts, duration,
-exit code, and for filtered commands: `original_lines`, `filtered_lines`,
-and `filtered: true`. Data is ephemeral (cleared on reboot).
 
 ### Error detection
 
