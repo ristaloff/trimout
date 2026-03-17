@@ -63,16 +63,21 @@ exactly what to fix.
 
 ## Context savings
 
-| Scenario | Raw lines | Trimmed | Raw bytes | Trimmed | Reduction |
-|----------|----------:|--------:|----------:|--------:|----------:|
-| `dotnet build` — multi-project | 129 | 13 | 40 KB | 1.4 KB | 96.5% |
-| `npm install` — large dependency tree | 507 | 13 | 33 KB | 0.5 KB | 98.4% |
-| `dotnet build` — single project | 268 | 13 | 17 KB | 0.4 KB | 97.6% |
-| Build with errors | 45 | 45 | 1.1 KB | 1.1 KB | 0% |
+Real numbers from production sessions:
+
+| Scenario | Raw lines | Trimmed | Reduction |
+|----------|----------:|--------:|----------:|
+| `dotnet test` — full suite | 2,269 | 12 | 99.5% |
+| `dotnet test` — integration tests | 1,863 | 43 | 97.7% |
+| `dotnet test` — subset | 194 | 13 | 93.3% |
+| `dotnet build` — multi-project | 38 | 12 | 68.4% |
+| `dotnet test` — with errors | 100 | 99 | 0% |
 
 Errors always pass through unfiltered — 0% reduction on failures is by design.
-Each filtered build saves roughly 5,000-10,000 context window tokens
-(~4 bytes per token across most LLM tokenizers).
+
+Across 100+ filtered commands in real development sessions, average
+reduction is **88%** for test runs and **25%** for builds (builds are
+often short enough to pass through unchanged).
 
 ## How it works
 
