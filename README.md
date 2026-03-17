@@ -233,6 +233,14 @@ Failed:     0       0 Error(s)
 looks like, how to opt out, and troubleshooting. Agents that support the
 convention read it automatically.
 
+## See also
+
+[RTK](https://github.com/rtk-ai/rtk) takes a different approach to the
+same problem — semantic per-command compression with 30+ specialized
+modules. If you want smarter filtering (git diff grouping, test pass/fail
+summaries), check it out. trimout is the simpler alternative: one generic
+filter, predictable behavior, errors always inline.
+
 ## Testing
 
 ```bash
