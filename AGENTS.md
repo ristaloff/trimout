@@ -19,7 +19,6 @@ If output looks compressed, that's trimout working — you don't call it directl
 - **Errors always pass through unfiltered** — you have everything you need
 - **Compressed output means success** — details are in the log
 - **Need full output?** Read the log file at the path shown
-- **Bypass filtering** by adding `# nofilter` anywhere in the command string
 
 ```
 ... (264 lines filtered)
@@ -27,9 +26,17 @@ If output looks compressed, that's trimout working — you don't call it directl
 Full output: /tmp/trimout-data/logs/20260316-183000.log
 ```
 
+### Opting out
+
+When you need unfiltered output (debugging, analyzing full logs, etc.),
+add `# nofilter` to the command. Do not use workarounds like `| cat` —
+they break the pipeline and lose metrics.
+
 ```bash
 dotnet test --no-build # nofilter
 ```
+
+This works anywhere in the command string, including piped and chained commands.
 
 ## Commands that get filtered
 
@@ -44,6 +51,16 @@ Matches anywhere in the command including pipes and chains:
 - **make**, cmake, gradle, mvn
 
 Everything else passes through untouched.
+
+## Install
+
+Requires Go 1.21+:
+
+```bash
+go install github.com/ristaloff/trimout@latest
+```
+
+If `~/go/bin` isn't on your PATH: `cp ~/go/bin/trimout ~/.local/bin/`
 
 ## Setup
 
@@ -75,18 +92,6 @@ Or pipe through the filter directly:
 dotnet build 2>&1 | tee build.log | trimout filter --log build.log
 ```
 
-## Install
-
-Requires Go 1.21+:
-
-```bash
-go install github.com/ristaloff/trimout@latest
-```
-
-If `~/go/bin` isn't on your PATH: `cp ~/go/bin/trimout ~/.local/bin/`
-
-Verify: `trimout install claude-code --check`
-
 ## Logs and metrics
 
 - Full unfiltered output: `/tmp/trimout-data/logs/`
@@ -106,12 +111,5 @@ Verify: `trimout install claude-code --check`
 
 Run `trimout --help` for full usage, flags, and examples.
 Each subcommand also has help: `trimout filter --help`, `trimout hook --help`, etc.
-
-## Testing
-
-```bash
-go test ./...
-trimout --check "cmd"  # test if a command matches the allowlist
-```
 
 Source: https://github.com/ristaloff/trimout
