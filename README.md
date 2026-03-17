@@ -44,6 +44,8 @@ Full output: /tmp/trimout-data/logs/20260316-183000.log
 
 ### 1. Install
 
+Requires [Go](https://go.dev/dl/) 1.21+:
+
 ```bash
 go install github.com/ristaloff/trimout@latest
 ```
@@ -56,7 +58,8 @@ If `~/go/bin` isn't on your `PATH`: `cp ~/go/bin/trimout ~/.local/bin/`
 trimout install claude-code
 ```
 
-Copy the output into the `"hooks"` object in `~/.claude/settings.json`.
+Copy the output into `~/.claude/settings.json`. If the file doesn't
+exist yet, the command prints a complete file you can save directly.
 
 ### 3. Restart Claude Code
 
