@@ -6,7 +6,18 @@ output to reduce context window usage while preserving errors unfiltered.
 Single static binary. Works with Claude Code, Cursor, Cline, Aider,
 Codex, or custom setups.
 
-## Before & after
+## The problem
+
+A `dotnet test` run produces 2,000+ lines. A `npm install` dumps 500.
+Most of this is progress noise — but it all enters the agent's context
+window, pushing out the code and conversation that matter.
+
+Claude Code truncates output over 30,000 characters, but most build
+output is well under that — it goes in uncompressed. And when truncation
+does kick in, it blindly removes the middle, potentially losing error
+context.
+
+trimout compresses clean output and preserves errors:
 
 ```
 $ dotnet build
@@ -61,9 +72,9 @@ trimout install claude-code --check
 All checks should pass. If something is wrong, the output tells you
 exactly what to fix.
 
-## Context savings
+## Impact
 
-Real numbers from production sessions:
+Per-command reduction from real development sessions:
 
 | Scenario | Raw lines | Trimmed | Reduction |
 |----------|----------:|--------:|----------:|
@@ -75,11 +86,7 @@ Real numbers from production sessions:
 
 Errors always pass through unfiltered — 0% reduction on failures is by design.
 
-Across 100+ filtered commands in real development sessions, average
-reduction is **88%** for test runs and **25%** for builds (builds are
-often short enough to pass through unchanged).
-
-### Session impact (early data — 3 sessions)
+### Session-level (early data — 3 sessions, will update)
 
 | Metric | Value |
 |--------|------:|
@@ -89,9 +96,8 @@ often short enough to pass through unchanged).
 | Bash context reduced | 49% |
 | Avg saved per session | ~53,000 tokens |
 
-Nearly half of all Bash tool context was build/test noise that trimout
-compressed away — context the agent can use for reasoning instead.
-Will update as usage grows.
+Nearly half of all Bash tool context was build/test noise — context
+the agent can use for reasoning instead.
 
 ## How it works
 
