@@ -9,7 +9,7 @@ via the generic wrapper or pipe filter.
 
 ## The problem
 
-A `dotnet test` run produces 2,000+ lines. A `npm install` dumps 500.
+A `dotnet test` run produces 2,000+ lines. A `npm install` can dump 500+.
 Most of this is progress noise — but it all enters the agent's context
 window, pushing out the code and conversation that matter.
 
