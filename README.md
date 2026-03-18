@@ -3,8 +3,9 @@
 Output trimmer for AI coding agents. Compresses verbose build/test
 output to reduce context window usage while preserving errors unfiltered.
 
-Single static binary. Works with Claude Code, Cursor, Cline, Aider,
-Codex, or custom setups.
+Single static binary. Tested with Claude Code. Should work with any
+agent that executes shell commands (Cursor, Cline, Aider, Codex, etc.)
+via the generic wrapper or pipe filter.
 
 ## The problem
 
