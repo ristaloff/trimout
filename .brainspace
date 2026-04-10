@@ -1,0 +1,8 @@
+space: trimout
+layout: repo
+branching:
+  integration: main
+  production: main
+  pr-target: main
+  direct-merge-ok: []
+  always-pr: [main]
