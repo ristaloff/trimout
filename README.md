@@ -28,15 +28,13 @@ $ dotnet build
   CoreCompile:
     /usr/bin/dotnet exec /usr/share/dotnet/sdk/8.0.303/Roslyn/bincore/csc.dll ...
 
-... (264 lines filtered)
+... (264 lines filtered — recall: trimout recall /tmp/trimout-data/logs/20260316-183000.log)
 
   Build succeeded.
       0 Warning(s)
       0 Error(s)
 
   Time Elapsed 00:00:03.42
-
-Full output: /tmp/trimout-data/logs/20260316-183000.log
 ```
 
 274 lines → 13. Errors pass through unfiltered.
@@ -114,10 +112,13 @@ the agent can use for reasoning instead.
 ## How it works
 
 - **Short output** (<=30 lines): passes through unchanged
-- **Clean long output** (>30 lines, no errors): compressed to first 5 + last 5 lines with a log pointer
+- **Clean long output** (>30 lines, no errors): compressed to first 5 + last 5 lines with a recall pointer
 - **Errors detected** (<=500 lines): passes through entirely so you can diagnose
-- **Errors detected** (>500 lines): shows head/tail + up to 30 extracted error lines
+- **Errors detected** (>500 lines): head/tail plus each error with its surrounding context (2 lines before, 5 after, overlapping blocks merged, 60-line budget)
 - **Full output**: always saved to `/tmp/trimout-data/logs/`
+
+Filtered output is never larger than the raw output. If compression would
+cost more bytes than it saves, the raw text is emitted unchanged.
 
 ### Opt out
 
@@ -127,9 +128,28 @@ Add `# nofilter` anywhere in the command string:
 dotnet test --no-build # nofilter
 ```
 
+### Recovering filtered lines
+
+The elision marker names a command, not just a path:
+
+```
+... (588 lines filtered — 2 errors detected — recall: trimout recall /tmp/trimout-data/logs/20260316-183000.log)
+```
+
+`trimout recall` returns a bounded view — by default the error blocks with
+their context, or the head and tail of a clean log. This matters because
+`cat`-ing the log puts every filtered line straight back into the context
+window, which costs more than never having filtered. `--all` is there when
+you really want the whole file.
+
 ## Supported commands
 
-Matches anywhere in the command including pipes and chains (word-boundary regex):
+Matched in **command position** — the start of any segment of the command,
+after environment assignments (`FOO=bar`) and process wrappers (`sudo`,
+`env`, `timeout 300`, `uv run`) are stripped. Segments are split on unquoted
+`|`, `&&`, `||`, `;`, and subshells, so `cd src && make` matches but
+`grep -rn "make" .` and `git commit -m "make it work"` do not — compressing
+output you explicitly asked for would lose data, not noise.
 
 | Ecosystem | Commands |
 |-----------|----------|
@@ -178,6 +198,10 @@ trimout --session ID "command"     Custom session ID
 trimout filter [--log F] [--session S]   Stdin→stdout text filter
 trimout hook                       Claude Code PreToolUse adapter
 trimout metrics                    Claude Code PostToolUse adapter
+trimout recall FILE                Bounded view of a saved log
+trimout recall FILE --head N       First N lines
+trimout recall FILE --tail N       Last N lines
+trimout recall FILE --all          Entire log (explicit escape hatch)
 trimout install <agent>            Print hook configuration
 trimout install <agent> --check    Verify installation
 trimout --version                  Print version

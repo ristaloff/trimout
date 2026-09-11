@@ -202,3 +202,126 @@ func TestFilterNoLogPath(t *testing.T) {
 		t.Error("should not show 'full:' when no log path")
 	}
 }
+
+func TestNeverWorse(t *testing.T) {
+	tests := []struct {
+		name     string
+		raw      string
+		filtered string
+		want     string
+	}{
+		{"keeps filtered when smaller", strings.Repeat("a", 400), "ok", "ok"},
+		{"falls back when filtered bigger", "ab", "a much longer form", "ab"},
+		{"tie keeps raw", "abcd", "wxyz", "abcd"},
+		{"empty raw returns raw", "", "0 matches", ""},
+		{"empty filtered returns filtered", "data", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := neverWorse(tt.raw, tt.filtered); got != tt.want {
+				t.Errorf("neverWorse(%q, %q) = %q, want %q", tt.raw, tt.filtered, got, tt.want)
+			}
+		})
+	}
+}
+
+// Filtering must never cost more bytes than not filtering. Short repetitive
+// output with a long log path is the case that breaks a naive head+tail.
+func TestFilterNeverExceedsRawBytes(t *testing.T) {
+	longPath := "/tmp/trimout-data/logs/" + strings.Repeat("x", 80) + ".log"
+	for _, n := range []int{1, 29, 30, 31, 32, 40} {
+		input := strings.Repeat("x\n", n)
+		result := captureFilterOutput(t, input, longPath, "test")
+		if len(result) > len(input) {
+			t.Errorf("n=%d: filtered %d bytes > raw %d bytes", n, len(result), len(input))
+		}
+	}
+}
+
+// A failure block is multi-line: the line matching the error pattern is
+// often just a header, and the lines that explain the failure carry no
+// error keyword of their own.
+func TestFilterKeepsErrorContext(t *testing.T) {
+	var b strings.Builder
+	b.WriteString(filler(300))
+	b.WriteString("\n  Failed MyApp.Tests.CalcTest.Divide [12 ms]\n")
+	b.WriteString("  Error Message:\n")
+	b.WriteString("   Assert.Equal() Failure: Values differ\n")
+	b.WriteString("   Expected: 42\n")
+	b.WriteString("   Actual:   0\n")
+	b.WriteString("  Stack Trace:\n")
+	b.WriteString("     at MyApp.Calc.Divide() in /src/Calc.cs:line 18\n")
+	b.WriteString(filler(300))
+	b.WriteString("\n")
+
+	result := captureFilterOutput(t, b.String(), "/tmp/test.log", "test")
+
+	for _, want := range []string{
+		"Failed MyApp.Tests.CalcTest.Divide",
+		"Expected: 42",
+		"Actual:   0",
+		"Calc.cs:line 18",
+	} {
+		if !strings.Contains(result, want) {
+			t.Errorf("filtered output lost %q\n--- got ---\n%s", want, result)
+		}
+	}
+}
+
+// The error section must stay bounded when a run fails in many places.
+func TestFilterErrorContextRespectsBudget(t *testing.T) {
+	var b strings.Builder
+	for i := 0; i < 200; i++ {
+		fmt.Fprintf(&b, "error: failure number %d\n", i)
+		b.WriteString(filler(3))
+		b.WriteString("\n")
+	}
+
+	result := captureFilterOutput(t, b.String(), "/tmp/test.log", "test")
+	lines := countOutputLines(result)
+	max := HeadLines + TailLines + MaxErrorBlockLines + 10
+	if lines > max {
+		t.Errorf("error section unbounded: %d lines > %d", lines, max)
+	}
+}
+
+// The elision marker must name a runnable recovery command, not a bare
+// path — reading the log with cat defeats the filtering.
+func TestFilterElisionNamesRecall(t *testing.T) {
+	result := captureFilterOutput(t, filler(100)+"\n", "/tmp/test.log", "test")
+	if !strings.Contains(result, "trimout recall /tmp/test.log") {
+		t.Errorf("elision marker lacks recall command:\n%s", result)
+	}
+}
+
+func TestMergeWindows(t *testing.T) {
+	tests := []struct {
+		name   string
+		idx    []int
+		total  int
+		before int
+		after  int
+		want   []window
+	}{
+		{"single", []int{10}, 100, 2, 5, []window{{8, 15}}},
+		{"merges overlapping", []int{10, 12}, 100, 2, 5, []window{{8, 17}}},
+		{"merges touching", []int{10, 18}, 100, 2, 5, []window{{8, 23}}},
+		{"keeps distant separate", []int{10, 50}, 100, 2, 5, []window{{8, 15}, {48, 55}}},
+		{"clamps to bounds", []int{0, 99}, 100, 2, 5, []window{{0, 5}, {97, 99}}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := mergeWindows(tt.idx, tt.total, tt.before, tt.after)
+			if len(got) != len(tt.want) {
+				t.Fatalf("mergeWindows() = %v, want %v", got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("window %d = %v, want %v", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
