@@ -198,8 +198,8 @@ func TestFilterNoLogPath(t *testing.T) {
 	if !strings.Contains(result, "lines filtered") {
 		t.Error("should still compress without log path")
 	}
-	if strings.Contains(result, "full:") {
-		t.Error("should not show 'full:' when no log path")
+	if strings.Contains(result, "recall") {
+		t.Error("should not suggest recall when there is no log path")
 	}
 }
 
@@ -280,9 +280,17 @@ func TestFilterErrorContextRespectsBudget(t *testing.T) {
 
 	result := captureFilterOutput(t, b.String(), "/tmp/test.log", "test")
 	lines := countOutputLines(result)
-	max := HeadLines + TailLines + MaxErrorBlockLines + 10
+	max := HeadLines + TailLines + defaultBudget.MaxSectionLines + 20
 	if lines > max {
 		t.Errorf("error section unbounded: %d lines > %d", lines, max)
+	}
+	// Bounded is not enough: dropping content silently is what makes an
+	// agent stop looking. Whichever form the drop took — whole blocks over
+	// the section budget, or a single merged block over the per-block cap —
+	// it has to be stated.
+	if !strings.Contains(result, "more error blocks not shown") &&
+		!strings.Contains(result, "lines in this block") {
+		t.Errorf("dropped error content was not reported:\n%s", result)
 	}
 }
 
@@ -290,8 +298,13 @@ func TestFilterErrorContextRespectsBudget(t *testing.T) {
 // path — reading the log with cat defeats the filtering.
 func TestFilterElisionNamesRecall(t *testing.T) {
 	result := captureFilterOutput(t, filler(100)+"\n", "/tmp/test.log", "test")
-	if !strings.Contains(result, "trimout recall /tmp/test.log") {
+	// The binary name is resolved via selfPath(), so assert on the shape:
+	// a runnable "<binary> recall <log>", not a bare path.
+	if !strings.Contains(result, "recall /tmp/test.log") {
 		t.Errorf("elision marker lacks recall command:\n%s", result)
+	}
+	if !strings.Contains(result, selfPath()+" recall") {
+		t.Errorf("recall command is not an absolute path (breaks when PATH differs):\n%s", result)
 	}
 }
 

@@ -1,0 +1,4 @@
+# One failure per line. Facts are pipe-separated.
+test_alpha|ZeroDivisionError: integer division or modulo by zero|line 7, in divide
+test_beta|AssertionError: 'expected text' != 'actual text'
+test_gamma|AssertionError: False is not true : config was null

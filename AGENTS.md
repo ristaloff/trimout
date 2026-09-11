@@ -18,8 +18,12 @@ If output looks compressed, that's trimout working — you don't call it directl
 
 ## When you see filtered output
 
-- **Errors always pass through unfiltered** — you have everything you need
-- **Compressed output means success** — details are in the log
+- **Errors under 500 lines pass through unfiltered** — you have everything
+- **Above that, errors are kept with their context** — enough to diagnose:
+  the test name, the assertion, the `file:line`
+- **Read the summary line.** If it says `+N more error blocks not shown` or
+  `+N lines in this block`, you are looking at a subset — recall the rest
+  before concluding what failed
 - **Need the filtered lines?** Run the `recall` command the marker names.
   Do not `cat` the log — that puts every filtered line back into context,
   which costs more than never having filtered.

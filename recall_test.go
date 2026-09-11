@@ -45,7 +45,7 @@ func TestRecallSurfacesErrorsWithContext(t *testing.T) {
 			t.Errorf("recall lost %q", want)
 		}
 	}
-	if countOutputLines(got) > RecallErrorBlockLines+5 {
+	if countOutputLines(got) > RecallSectionLines+20 {
 		t.Errorf("error view unbounded: %d lines", countOutputLines(got))
 	}
 }

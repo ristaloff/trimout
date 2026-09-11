@@ -1,0 +1,21 @@
+# 20 distinct failures, one per line. Facts are pipe-separated.
+TestCase01|field01 mismatch: got 1, want 7
+TestCase02|field02 mismatch: got 2, want 14
+TestCase03|field03 mismatch: got 3, want 21
+TestCase04|field04 mismatch: got 4, want 28
+TestCase05|field05 mismatch: got 5, want 35
+TestCase06|field06 mismatch: got 6, want 42
+TestCase07|field07 mismatch: got 7, want 49
+TestCase08|field08 mismatch: got 8, want 56
+TestCase09|field09 mismatch: got 9, want 63
+TestCase10|field10 mismatch: got 10, want 70
+TestCase11|field11 mismatch: got 11, want 77
+TestCase12|field12 mismatch: got 12, want 84
+TestCase13|field13 mismatch: got 13, want 91
+TestCase14|field14 mismatch: got 14, want 98
+TestCase15|field15 mismatch: got 15, want 105
+TestCase16|field16 mismatch: got 16, want 112
+TestCase17|field17 mismatch: got 17, want 119
+TestCase18|field18 mismatch: got 18, want 126
+TestCase19|field19 mismatch: got 19, want 133
+TestCase20|field20 mismatch: got 20, want 140

@@ -94,7 +94,9 @@ Per-command reduction from real development sessions:
 | `dotnet build` — multi-project | 38 | 12 | 68.4% |
 | `dotnet test` — with errors | 100 | 99 | 0% |
 
-Errors always pass through unfiltered — 0% reduction on failures is by design.
+Failing runs under 500 lines pass through unfiltered — 0% reduction on those
+is by design. Larger failing runs keep each error with its context; see
+[How it works](#how-it-works).
 
 ### Session-level (early data — 3 sessions, will update)
 
@@ -114,11 +116,20 @@ the agent can use for reasoning instead.
 - **Short output** (<=30 lines): passes through unchanged
 - **Clean long output** (>30 lines, no errors): compressed to first 5 + last 5 lines with a recall pointer
 - **Errors detected** (<=500 lines): passes through entirely so you can diagnose
-- **Errors detected** (>500 lines): head/tail plus each error with its surrounding context (2 lines before, 5 after, overlapping blocks merged, 60-line budget)
+- **Errors detected** (>500 lines): head/tail plus each error with its surrounding context (2 lines before, 12 after, overlapping blocks merged). Blocks that do not fit the section budget are dropped whole and counted — never cut in half, because half a failure cannot be acted on but still costs its lines
 - **Full output**: always saved to `/tmp/trimout-data/logs/`
 
 Filtered output is never larger than the raw output. If compression would
 cost more bytes than it saves, the raw text is emitted unchanged.
+
+The context window and section budget are not guesses. `testdata/fixtures/`
+holds real output captured from real failing runs (go test, dotnet xunit,
+python unittest, gcc), each with a manifest of the strings a fix depends on
+— the test name, the assertion, the `file:line`. `go test -run TestEval` asserts
+every failure stays diagnosable from the filtered output alone;
+`go test -run TestEvalSweep -v` prints the trade-off the constants sit on.
+Twelve lines of trailing context is where every fixture becomes fully
+diagnosable; ten loses the cause line of a Go panic and a Python traceback.
 
 ### Opt out
 

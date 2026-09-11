@@ -11,11 +11,12 @@ import (
 // recall is an explicit request for more — but still bounded, so recovering
 // context can never cost more than having skipped filtering.
 const (
-	RecallHeadLines       = 20
-	RecallTailLines       = 20
-	RecallErrorBlockLines = 200
-	RecallCtxBefore       = 3
-	RecallCtxAfter        = 10
+	RecallHeadLines     = 20
+	RecallTailLines     = 20
+	RecallSectionLines  = 400
+	RecallLinesPerBlock = 80
+	RecallCtxBefore     = 3
+	RecallCtxAfter      = 10
 )
 
 // runRecall prints a bounded view of a saved log. The filter's elision
@@ -102,7 +103,7 @@ func recallView(input, logPath string, headN, tailN int, all bool) string {
 // recallErrors renders the error blocks with wide context, under budget.
 func recallErrors(lines []string, idx []int, logPath string) string {
 	ws := mergeWindows(idx, len(lines), RecallCtxBefore, RecallCtxAfter)
-	body, kept := renderWindows(lines, ws, RecallErrorBlockLines)
+	body, kept, _ := renderBlocks(lines, ws, errorBudget{MaxSectionLines: RecallSectionLines, MaxLinesPerBlock: RecallLinesPerBlock})
 
 	var b strings.Builder
 	b.WriteString(strings.TrimRight(body, "\n"))

@@ -1,0 +1,5 @@
+# One failure per line. Facts are pipe-separated.
+UnitTest1.Alpha|Expected: 42|Actual:   0|UnitTest1.cs:line 4
+UnitTest1.Delta|System.InvalidOperationException : boom|UnitTest1.cs:line 7
+UnitTest1.Beta|config was null|UnitTest1.cs:line 5
+UnitTest1.Gamma|Strings differ|UnitTest1.cs:line 6

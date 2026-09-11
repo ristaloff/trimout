@@ -1,0 +1,6 @@
+# One failure per line. Facts are pipe-separated: every fact is a string an
+# agent needs in order to fix that failure without re-running the command.
+TestAlpha|Divide() = 0, want 42
+TestBeta|unexpected nil config
+TestGamma|got:  "abc"|want: "xyz"
+TestDelta|panic: boom|/src/a_test.go:8

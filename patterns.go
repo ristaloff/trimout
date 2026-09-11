@@ -11,21 +11,53 @@ const (
 	TailLines      = 5
 	Threshold      = 30
 	MaxPassthrough = 500
-	MaxErrorLines  = 30
 	LogRetentionD  = 7
-
-	// Error context window. A build failure is a block, not a line: the
-	// line matching the error pattern is usually a header ("Error Message:")
-	// and the lines that explain the failure (expected/actual, stack frame)
-	// carry no error keyword of their own. Keeping a window around each
-	// match preserves the diagnosis instead of just its title.
-	ErrCtxBefore = 2
-	ErrCtxAfter  = 5
-
-	// Budget for the error section, so a run with hundreds of failures
-	// cannot grow the filtered output without bound.
-	MaxErrorBlockLines = 60
 )
+
+// errorBudget bounds the error section of a compressed failing run.
+//
+// Two properties, both learned from the fixtures in testdata/:
+//
+// A failure is a block, not a line. The line matching the error pattern is
+// usually a header ("Error Message:") while the lines that explain the
+// failure — expected/actual, the stack frame carrying file:line — match
+// nothing themselves. Budgeting by line alone makes the number of surviving
+// failures depend on how verbose the tool is.
+//
+// Whole blocks are dropped, never truncated. Tools differ in whether they
+// separate failures with progress output (go) or print them back to back
+// (dotnet, python); in the latter case neighbouring failures merge into one
+// block. Cutting such a block mid-way lands in the middle of a failure and
+// leaves it undiagnosable while still spending the lines, so a block that
+// does not fit is dropped and counted instead.
+type errorBudget struct {
+	MaxSectionLines  int
+	MaxLinesPerBlock int
+	CtxBefore        int
+	CtxAfter         int
+}
+
+// defaultBudget is chosen by the eval in eval_test.go, not by taste. Run
+// `go test -run TestEvalSweep -v` to see the trade-off these values sit on.
+var defaultBudget = errorBudget{
+	// CtxAfter is the one value the eval pins: at 10 the go panic and the
+	// python traceback lose their cause line (32/33 diagnosable), at 12
+	// every fixture is fully diagnosable (33/33). Above 12 costs lines and
+	// recovers nothing.
+	CtxAfter: 12,
+	// CtxBefore is small on purpose — the lines before a failure are the
+	// build noise that preceded it, not part of the diagnosis.
+	CtxBefore: 2,
+	// Diagnosability is flat in MaxSectionLines across the fixtures, because
+	// test runners print failures back to back and the merged block is
+	// always emitted. It is therefore a cost knob for the case the eval
+	// cannot model well — failures scattered through a long build — and
+	// whatever it drops is counted in the summary line.
+	MaxSectionLines: 120,
+	// Backstop for one pathological block (a suite failing in hundreds of
+	// contiguous places). When it bites, the cut is stated inline.
+	MaxLinesPerBlock: 60,
+}
 
 // allowlistPatterns are word-boundary regexes matching known-verbose tool
 // invocations. Compiled anchored (see compilePatterns) and tested only
