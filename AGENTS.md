@@ -9,22 +9,32 @@ When configured, trimout intercepts build/test commands and filters output:
 
 - **Short output** (<=30 lines): unchanged
 - **Clean long output** (>30 lines, no errors): compressed to first 5 + last 5 lines
-- **Errors detected**: passes through unfiltered so you can diagnose
-- **Full output**: always saved to a log file you can read if needed
+- **Errors detected**: passes through unfiltered so you can diagnose. Output too
+  large to pass through whole keeps each error with its surrounding context, so
+  the assertion and stack frame survive, not just the error header
+- **Full output**: always saved to a log you can recall if needed
 
 If output looks compressed, that's trimout working — you don't call it directly.
 
 ## When you see filtered output
 
-- **Errors always pass through unfiltered** — you have everything you need
-- **Compressed output means success** — details are in the log
-- **Need full output?** Read the log file at the path shown
+- **Errors under 500 lines pass through unfiltered** — you have everything
+- **Above that, errors are kept with their context** — enough to diagnose:
+  the test name, the assertion, the `file:line`
+- **Read the summary line.** If it says `+N more error blocks not shown` or
+  `+N lines in this block`, you are looking at a subset — recall the rest
+  before concluding what failed
+- **Need the filtered lines?** Run the `recall` command the marker names.
+  Do not `cat` the log — that puts every filtered line back into context,
+  which costs more than never having filtered.
 
 ```
-... (264 lines filtered)
-
-Full output: /tmp/trimout-data/logs/20260316-183000.log
+... (264 lines filtered — recall: trimout recall /tmp/trimout-data/logs/20260316-183000.log)
 ```
+
+`trimout recall <log>` returns a bounded view: the error blocks with their
+context, or the head and tail of a clean log. Narrow or widen it with
+`--head N`, `--tail N`, or `--all` for the whole file.
 
 ### Opting out
 
@@ -40,7 +50,10 @@ This works anywhere in the command string, including piped and chained commands.
 
 ## Commands that get filtered
 
-Matches anywhere in the command including pipes and chains:
+Matched in command position — the start of any command segment, after
+environment assignments and process wrappers are stripped. `cd src && make`
+matches; `grep -rn "make" .` does not, because the tool name is an argument
+there and compressing a search result you asked for would lose data:
 
 - **dotnet** build, test, publish, restore, format, clean
 - **npm/yarn/pnpm** install, ci, test, run; **npx** tsc, jest, vitest
@@ -103,7 +116,7 @@ dotnet build 2>&1 | tee build.log | trimout filter --log build.log
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Output looks empty after build | Redirects (`> file`) capture output before the filter | Remove redirects or add `# nofilter` |
-| Errors not showing | Error pattern didn't match | Read the full log file, or rerun with `# nofilter` |
+| Errors not showing | Error pattern didn't match | `trimout recall <log>`, or rerun with `# nofilter` |
 | `trimout: command not found` | Binary not on PATH | `which trimout`, use full path in hook config |
 | Filter not activating | Command not on allowlist | `trimout --check "your command"` (exit 0 = matches) |
 

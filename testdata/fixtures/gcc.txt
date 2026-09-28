@@ -1,0 +1,17 @@
+bad.c: In function ‘main’:
+bad.c:3:13: warning: initialization of ‘int’ from ‘char *’ makes integer from pointer without a cast [-Wint-conversion]
+    3 |     int x = "string";
+      |             ^~~~~~~~
+bad.c:4:5: warning: implicit declaration of function ‘undefined_function’ [-Wimplicit-function-declaration]
+    4 |     undefined_function(1, 2);
+      |     ^~~~~~~~~~~~~~~~~~
+bad.c:5:20: error: ‘y’ undeclared (first use in this function)
+    5 |     printf("%d\n", y);
+      |                    ^
+bad.c:5:20: note: each undeclared identifier is reported only once for each function it appears in
+bad.c:6:13: error: expected ‘;’ before ‘}’ token
+    6 |     return 0
+      |             ^
+      |             ;
+    7 | }
+      | ~            

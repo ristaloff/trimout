@@ -29,4 +29,3 @@ func TestMetricsDir(t *testing.T) {
 		t.Errorf("MetricsDir() = %q, want %q", got, want)
 	}
 }
-

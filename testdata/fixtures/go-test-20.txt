@@ -1,0 +1,43 @@
+--- FAIL: TestCase01 (0.00s)
+    big_test.go:5: field01 mismatch: got 1, want 7
+--- FAIL: TestCase02 (0.00s)
+    big_test.go:6: field02 mismatch: got 2, want 14
+--- FAIL: TestCase03 (0.00s)
+    big_test.go:7: field03 mismatch: got 3, want 21
+--- FAIL: TestCase04 (0.00s)
+    big_test.go:8: field04 mismatch: got 4, want 28
+--- FAIL: TestCase05 (0.00s)
+    big_test.go:9: field05 mismatch: got 5, want 35
+--- FAIL: TestCase06 (0.00s)
+    big_test.go:10: field06 mismatch: got 6, want 42
+--- FAIL: TestCase07 (0.00s)
+    big_test.go:11: field07 mismatch: got 7, want 49
+--- FAIL: TestCase08 (0.00s)
+    big_test.go:12: field08 mismatch: got 8, want 56
+--- FAIL: TestCase09 (0.00s)
+    big_test.go:13: field09 mismatch: got 9, want 63
+--- FAIL: TestCase10 (0.00s)
+    big_test.go:14: field10 mismatch: got 10, want 70
+--- FAIL: TestCase11 (0.00s)
+    big_test.go:15: field11 mismatch: got 11, want 77
+--- FAIL: TestCase12 (0.00s)
+    big_test.go:16: field12 mismatch: got 12, want 84
+--- FAIL: TestCase13 (0.00s)
+    big_test.go:17: field13 mismatch: got 13, want 91
+--- FAIL: TestCase14 (0.00s)
+    big_test.go:18: field14 mismatch: got 14, want 98
+--- FAIL: TestCase15 (0.00s)
+    big_test.go:19: field15 mismatch: got 15, want 105
+--- FAIL: TestCase16 (0.00s)
+    big_test.go:20: field16 mismatch: got 16, want 112
+--- FAIL: TestCase17 (0.00s)
+    big_test.go:21: field17 mismatch: got 17, want 119
+--- FAIL: TestCase18 (0.00s)
+    big_test.go:22: field18 mismatch: got 18, want 126
+--- FAIL: TestCase19 (0.00s)
+    big_test.go:23: field19 mismatch: got 19, want 133
+--- FAIL: TestCase20 (0.00s)
+    big_test.go:24: field20 mismatch: got 20, want 140
+FAIL
+FAIL	failshapes20	0.002s
+FAIL

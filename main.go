@@ -37,6 +37,12 @@ func main() {
 			return
 		}
 		runMetrics()
+	case "recall":
+		if hasHelpFlag(os.Args[2:]) {
+			printRecallHelp()
+			return
+		}
+		runRecall(os.Args[2:])
 	case "install":
 		if hasHelpFlag(os.Args[2:]) {
 			printInstallHelp()
@@ -73,6 +79,7 @@ Usage:
   trimout filter                 Stdin→stdout text filter (the core engine)
   trimout hook                   Claude Code PreToolUse adapter
   trimout metrics                Claude Code PostToolUse adapter
+  trimout recall <log>           Show a bounded view of a saved log
   trimout install <agent>        Set up hooks for an agent (e.g. claude-code)
   trimout install <agent> --check  Verify installation is healthy
   trimout --version              Print version
@@ -112,8 +119,10 @@ func printFilterHelp() {
 
 Reads command output from stdin and writes filtered output to stdout.
 Short output (<=30 lines) passes through unchanged. Clean long output
-is compressed to the first 5 and last 5 lines with a log file pointer.
-Output containing errors passes through unfiltered for diagnosis.
+is compressed to the first 5 and last 5 lines with a recall pointer.
+Output containing errors passes through unfiltered for diagnosis; when
+it is too large to pass through whole, each error is kept with its
+surrounding context. Filtered output is never larger than the input.
 
 Usage:
   trimout filter [flags]
@@ -162,6 +171,28 @@ Usage:
 
 Setup:
   trimout install claude-code`)
+}
+
+func printRecallHelp() {
+	fmt.Fprintln(os.Stderr, `trimout recall — bounded view of a saved log
+
+Recovers what the filter removed without putting the whole log back into
+the context window. Reading the log with cat costs more context than
+never having filtered, so the filter's elision marker names this command.
+
+With no flags, prints the error blocks with their surrounding context, or
+the head and tail when the log has no errors.
+
+Usage:
+  trimout recall <log> [flags]
+
+Flags:
+  --head N    First N lines
+  --tail N    Last N lines
+  --all       Entire log, unbounded (explicit escape hatch)
+  -h, --help  Show this help
+
+Exit codes: 0 = success, 1 = log unreadable, 2 = no log given.`)
 }
 
 // parseFilterArgs extracts --log and --session from args.

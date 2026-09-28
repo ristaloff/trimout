@@ -22,4 +22,3 @@ func LogDir() string {
 func MetricsDir() string {
 	return filepath.Join(DataDir(), "metrics")
 }
-

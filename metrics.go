@@ -116,7 +116,9 @@ func runMetrics() {
 
 // estimateFilteredLines computes the expected filter output line count
 // from the original line count, using the filter's deterministic rules.
-// This is a fallback for when Claude Code reports empty stdout.
+// This is a fallback for when Claude Code reports empty stdout. It is a
+// floor, not an exact count: output with errors also carries their
+// context blocks, whose size is not derivable from the line count alone.
 func estimateFilteredLines(originalLines int) int {
 	if originalLines <= Threshold {
 		return originalLines // short: passthrough

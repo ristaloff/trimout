@@ -1,0 +1,49 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+/src/UnitTest1.cs(5,37): warning xUnit2020: Do not use Assert.True(false, message) to fail a test. Use Assert.Fail(message) instead. (https://xunit.net/xunit.analyzers/rules/xUnit2020) [/src/t.csproj]
+  t -> /src/bin/Debug/net10.0/t.dll
+Test run for /src/bin/Debug/net10.0/t.dll (.NETCoreApp,Version=v10.0)
+VSTest version 18.0.2 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.19]     UnitTest1.Alpha [FAIL]
+[xUnit.net 00:00:00.19]     UnitTest1.Delta [FAIL]
+[xUnit.net 00:00:00.19]     UnitTest1.Beta [FAIL]
+[xUnit.net 00:00:00.19]     UnitTest1.Gamma [FAIL]
+  Failed UnitTest1.Alpha [4 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 42
+Actual:   0
+  Stack Trace:
+     at UnitTest1.Alpha() in /src/UnitTest1.cs:line 4
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed UnitTest1.Delta [< 1 ms]
+  Error Message:
+   System.InvalidOperationException : boom
+  Stack Trace:
+     at UnitTest1.Delta() in /src/UnitTest1.cs:line 7
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed UnitTest1.Beta [< 1 ms]
+  Error Message:
+   config was null
+  Stack Trace:
+     at UnitTest1.Beta() in /src/UnitTest1.cs:line 5
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+  Failed UnitTest1.Gamma [1 ms]
+  Error Message:
+   Assert.Equal() Failure: Strings differ
+           ↓ (pos 0)
+Expected: "expected text"
+Actual:   "actual text"
+           ↑ (pos 0)
+  Stack Trace:
+     at UnitTest1.Gamma() in /src/UnitTest1.cs:line 6
+   at System.Reflection.MethodBaseInvoker.InterpretedInvoke_Method(Object obj, IntPtr* args)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Failed!  - Failed:     4, Passed:     1, Skipped:     0, Total:     5, Duration: 25 ms - t.dll (net10.0)

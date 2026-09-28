@@ -1,0 +1,26 @@
+--- FAIL: TestAlpha (0.00s)
+    a_test.go:5: Divide() = 0, want 42
+--- FAIL: TestBeta (0.00s)
+    a_test.go:6: unexpected nil config
+--- FAIL: TestGamma (0.00s)
+    a_test.go:7: mismatch:
+          got:  "abc"
+          want: "xyz"
+--- FAIL: TestDelta (0.00s)
+panic: boom [recovered, repanicked]
+
+goroutine 21 [running]:
+testing.tRunner.func1.2({0x550fc0, 0x594650})
+	/usr/local/go/src/testing/testing.go:1974 +0x232
+testing.tRunner.func1()
+	/usr/local/go/src/testing/testing.go:1977 +0x349
+panic({0x550fc0?, 0x594650?})
+	/usr/local/go/src/runtime/panic.go:860 +0x13a
+failshapes.TestDelta(0x254c20966908?)
+	/src/a_test.go:8 +0x25
+testing.tRunner(0x254c20966908, 0x592ea0)
+	/usr/local/go/src/testing/testing.go:2036 +0xea
+created by testing.(*T).Run in goroutine 1
+	/usr/local/go/src/testing/testing.go:2101 +0x4c5
+FAIL	failshapes	0.004s
+FAIL

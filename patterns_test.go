@@ -72,6 +72,55 @@ func TestMatchesAllowlist(t *testing.T) {
 
 		// Word boundary checks
 		{"makedepend src/*.c", false},
+
+		// Command position — a tool name that is not the command must not
+		// match, or output the caller explicitly asked for gets compressed.
+		{`git commit -m "make it work"`, false},
+		{`echo "remember to run pytest"`, false},
+		{`grep -rn "make" .`, false},
+		{"cat notes.md | grep mvn", false},
+		{"echo make", false},
+		{"git log --grep=mvn", false},
+		{`git commit -m 'cmake tweaks'`, false},
+		{"./configure --with-make", false},
+		{"ls /opt/gradle", false},
+
+		// Command position — still matched where the tool really runs
+		{"rm -rf build && make", true},
+		{"make || echo failed", true},
+		{"(cd src; make)", true},
+		{"echo $(make -n)", true},
+
+		// Wrappers and runners are peeled
+		{"sudo make install", true},
+		{"env FOO=1 dotnet build", true},
+		{"nohup npm test", true},
+		{"uv run pytest", true},
+		{"poetry run pytest tests/", true},
+		{"bundle exec pytest", true},
+		{"timeout 300 cargo test", true},
+		{"timeout 5m go test ./...", true},
+
+		// Wrappers invoked with their own options. A wrapper's options and
+		// their values are stepped over; the first ordinary word is the
+		// command.
+		{"sudo -E make install", true},
+		{"nice -n 10 make", true},
+		{"stdbuf -oL make", true},
+		{"env -u GOFLAGS go build ./...", true},
+		{"timeout -k 5 300 cargo test", true},
+
+		// ...but the scan stops at the first ordinary word, so an
+		// allowlisted name further along an unrelated command is not a match.
+		{"sudo find / -name make", false},
+		{"sudo rm -rf /var/make", false},
+
+		// Build commands inside conditionals and loops
+		{"if [ -f Makefile ]; then make; fi", true},
+		{"for d in a b; do make -C $d; done", true},
+		{"while true; do npm test; done", true},
+		{"if make; then echo ok; fi", true},
+		{"for f in *.txt; do echo $f; done", false},
 	}
 
 	for _, tt := range tests {
@@ -115,6 +164,67 @@ func TestIsErrorLine(t *testing.T) {
 			got := isErrorLine(tt.line)
 			if got != tt.want {
 				t.Errorf("isErrorLine(%q) = %v, want %v", tt.line, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCommandSegments(t *testing.T) {
+	tests := []struct {
+		cmd  string
+		want []string
+	}{
+		{"make", []string{"make"}},
+		{"a && b", []string{"a ", "", " b"}},
+		{"a | b", []string{"a ", " b"}},
+		{"a; b", []string{"a", " b"}},
+		{`echo "a | b"`, []string{`echo "a | b"`}},
+		{`echo 'a && b'`, []string{`echo 'a && b'`}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.cmd, func(t *testing.T) {
+			got := commandSegments(tt.cmd)
+			if len(got) != len(tt.want) {
+				t.Fatalf("commandSegments(%q) = %q, want %q", tt.cmd, got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("commandSegments(%q)[%d] = %q, want %q", tt.cmd, i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestCommandHead(t *testing.T) {
+	tests := []struct {
+		seg  string
+		want string
+	}{
+		{"make test", "make test"},
+		{"  make test  ", "make test"},
+		{"sudo make", "make"},
+		{"FOO=bar BAZ=1 make", "make"},
+		{`FOO="a b" make`, "make"},
+		{"env make", "make"},
+		{"uv run pytest", "pytest"},
+		{"timeout 300 cargo test", "cargo test"},
+		{"timeout -k 5 300 cargo test", "cargo test"},
+		{"", ""},
+		{"sudo", ""},
+		{"nice -n 10 make", "make"},
+		{"sudo -E make install", "make install"},
+		{"env -u GOFLAGS go build", "go build"},
+		{"sudo find / -name make", "find / -name make"},
+		{"then make", "make"},
+		{"do npm test", "npm test"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.seg, func(t *testing.T) {
+			if got := commandHead(tt.seg); got != tt.want {
+				t.Errorf("commandHead(%q) = %q, want %q", tt.seg, got, tt.want)
 			}
 		})
 	}
