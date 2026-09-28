@@ -4,8 +4,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
+
+// alreadyWrapped reports whether a command is already a trimout pipeline.
+// Rewriting one a second time would nest the tee and leave the inner filter
+// reading the outer filter's compressed output.
+func alreadyWrapped(cmd string) bool {
+	return strings.Contains(cmd, " | tee ") && strings.Contains(cmd, " filter --log ")
+}
 
 // buildRewrittenCommand constructs the pipeline that wraps a command
 // with tee (for logging) and trimout filter (for compression).
@@ -68,6 +76,10 @@ func runRewrite(args []string) {
 
 	// Opt-out: # nofilter
 	if nofilterRe.MatchString(cmd) {
+		os.Exit(1)
+	}
+
+	if alreadyWrapped(cmd) {
 		os.Exit(1)
 	}
 

@@ -34,16 +34,23 @@ func runRecall(args []string) {
 		switch args[i] {
 		case "--all":
 			all = true
-		case "--head":
-			if i+1 < len(args) {
-				headN, _ = strconv.Atoi(args[i+1])
-				i++
+		case "--head", "--tail":
+			if i+1 >= len(args) {
+				fmt.Fprintf(os.Stderr, "trimout recall: %s needs a line count\n", args[i])
+				os.Exit(2)
 			}
-		case "--tail":
-			if i+1 < len(args) {
-				tailN, _ = strconv.Atoi(args[i+1])
-				i++
+			n, err := strconv.Atoi(args[i+1])
+			if err != nil || n < 1 {
+				fmt.Fprintf(os.Stderr, "trimout recall: %s wants a positive number, got %q\n",
+					args[i], args[i+1])
+				os.Exit(2)
 			}
+			if args[i] == "--head" {
+				headN = n
+			} else {
+				tailN = n
+			}
+			i++
 		default:
 			if logPath == "" {
 				logPath = args[i]

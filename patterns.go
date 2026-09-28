@@ -114,8 +114,18 @@ var falsePositive = regexp.MustCompile(`(?i)(failed:[[:space:]]+0|0[[:space:]]+e
 // envAssign matches a leading VAR= environment assignment.
 var envAssign = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
 
-// duration matches timeout's positional duration argument (e.g. 300, 5m).
-var duration = regexp.MustCompile(`^\d+(\.\d+)?[smhd]?$`)
+// optionValue matches the argument shapes a wrapper's own options take —
+// a duration or count, or an environment variable name. Used only after a
+// known wrapper, to step over its options without a per-wrapper table.
+var optionValue = regexp.MustCompile(`^(\d+(\.\d+)?[smhd]?|[A-Z][A-Z0-9_]*)$`)
+
+// shellKeywords precede a command inside a conditional or loop body. The
+// segment splitter breaks on ";" so these arrive at the head of a segment
+// (`for d in a b; do make -C $d; done` -> " do make -C $d").
+var shellKeywords = map[string]bool{
+	"then": true, "do": true, "else": true, "elif": true,
+	"if": true, "while": true, "until": true, "!": true,
+}
 
 // wrapperPrefixes run another command without changing which command runs,
 // so the allowlist test looks past them. Single-token only — a wrapper that
@@ -130,6 +140,7 @@ var wrapperPrefixes = map[string]bool{
 	"nice":    true,
 	"time":    true,
 	"stdbuf":  true,
+	"timeout": true,
 }
 
 // runnerPrefixes are two-token runners that execute a tool inside a managed
@@ -236,22 +247,26 @@ func commandHead(seg string) string {
 	for s != "" {
 		tok, rest := splitToken(s)
 
-		if envAssign.MatchString(tok) || wrapperPrefixes[tok] {
+		if envAssign.MatchString(tok) || shellKeywords[tok] {
 			s = rest
 			continue
 		}
 
-		// timeout is the one wrapper worth peeling despite taking a
-		// positional argument, and only when that argument is plainly a
-		// duration. Anything else and we stop — an unrecognised option
-		// may consume the next word and make it look like the command.
-		if tok == "timeout" && rest != "" {
-			next, after := splitToken(rest)
-			if duration.MatchString(next) {
-				s = after
-				continue
+		if wrapperPrefixes[tok] {
+			// Step over the wrapper's own options and their values, then
+			// stop at the first ordinary word — that is the command. Going
+			// further would let `sudo find / -name make` look like a make
+			// invocation.
+			s = rest
+			for s != "" {
+				next, after := splitToken(s)
+				if strings.HasPrefix(next, "-") || optionValue.MatchString(next) {
+					s = after
+					continue
+				}
+				break
 			}
-			return s
+			continue
 		}
 
 		if sub, ok := runnerPrefixes[tok]; ok {

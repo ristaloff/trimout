@@ -50,6 +50,10 @@ func runHook() {
 		return
 	}
 
+	if alreadyWrapped(cmd) {
+		return
+	}
+
 	// Check allowlist
 	if !matchesAllowlist(cmd) {
 		return

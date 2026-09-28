@@ -101,9 +101,26 @@ func TestMatchesAllowlist(t *testing.T) {
 		{"timeout 300 cargo test", true},
 		{"timeout 5m go test ./...", true},
 
-		// timeout without a duration-shaped argument is left alone, since
-		// an unrecognised option may consume the next word.
-		{"timeout --foo cargo test", false},
+		// Wrappers invoked with their own options. A wrapper's options and
+		// their values are stepped over; the first ordinary word is the
+		// command.
+		{"sudo -E make install", true},
+		{"nice -n 10 make", true},
+		{"stdbuf -oL make", true},
+		{"env -u GOFLAGS go build ./...", true},
+		{"timeout -k 5 300 cargo test", true},
+
+		// ...but the scan stops at the first ordinary word, so an
+		// allowlisted name further along an unrelated command is not a match.
+		{"sudo find / -name make", false},
+		{"sudo rm -rf /var/make", false},
+
+		// Build commands inside conditionals and loops
+		{"if [ -f Makefile ]; then make; fi", true},
+		{"for d in a b; do make -C $d; done", true},
+		{"while true; do npm test; done", true},
+		{"if make; then echo ok; fi", true},
+		{"for f in *.txt; do echo $f; done", false},
 	}
 
 	for _, tt := range tests {
@@ -193,10 +210,15 @@ func TestCommandHead(t *testing.T) {
 		{"env make", "make"},
 		{"uv run pytest", "pytest"},
 		{"timeout 300 cargo test", "cargo test"},
-		{"timeout --foo cargo test", "timeout --foo cargo test"},
+		{"timeout -k 5 300 cargo test", "cargo test"},
 		{"", ""},
 		{"sudo", ""},
-		{"nice -n 10 make", "-n 10 make"},
+		{"nice -n 10 make", "make"},
+		{"sudo -E make install", "make install"},
+		{"env -u GOFLAGS go build", "go build"},
+		{"sudo find / -name make", "find / -name make"},
+		{"then make", "make"},
+		{"do npm test", "npm test"},
 	}
 
 	for _, tt := range tests {
