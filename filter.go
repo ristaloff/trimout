@@ -184,29 +184,36 @@ func compressWithErrors(lines []string, errorIdx []int, logPath string) string {
 		omitted = 0
 	}
 
+	var lead string
+	if len(blocks) > 0 && blocks[0].start > midStart {
+		lead = fmt.Sprintf("... (%d lines)\n", blocks[0].start-midStart)
+	}
+
+	return render(lines, lead+body, errorElision(omitted, errorCount, dropped, logPath))
+}
+
+// render lays out every compressed form: the head block, an optional body
+// of kept middle lines, the summary marker, and the tail block. Both
+// compression paths share it so the layout cannot drift between them.
+func render(lines []string, body, marker string) string {
 	var b strings.Builder
 	b.WriteString(strings.Join(lines[:HeadLines], "\n"))
 	b.WriteString("\n\n")
-	if len(blocks) > 0 && blocks[0].start > midStart {
-		fmt.Fprintf(&b, "... (%d lines)\n", blocks[0].start-midStart)
+	if body != "" {
+		// body already ends in a newline; the extra one sets the marker
+		// off from the last kept line.
+		b.WriteString(body)
+		b.WriteString("\n")
 	}
-	b.WriteString(body)
-	fmt.Fprintf(&b, "\n%s\n\n", errorElision(omitted, errorCount, dropped, logPath))
-	b.WriteString(strings.Join(lines[total-TailLines:], "\n"))
-
+	fmt.Fprintf(&b, "%s\n\n", marker)
+	b.WriteString(strings.Join(lines[len(lines)-TailLines:], "\n"))
 	return b.String()
 }
 
 // compressClean keeps the head and tail of long output with no errors.
 func compressClean(lines []string, logPath string) string {
 	omitted := len(lines) - HeadLines - TailLines
-
-	var b strings.Builder
-	b.WriteString(strings.Join(lines[:HeadLines], "\n"))
-	fmt.Fprintf(&b, "\n\n%s\n\n", errorElision(omitted, 0, 0, logPath))
-	b.WriteString(strings.Join(lines[len(lines)-TailLines:], "\n"))
-
-	return b.String()
+	return render(lines, "", errorElision(omitted, 0, 0, logPath))
 }
 
 // errorElision is the summary for a compressed failing run. It must name
